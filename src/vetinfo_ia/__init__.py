@@ -1,32 +1,35 @@
-# no nível do arquivo só ficam definições (def, class, constantes); ação fica dentro de função.
+import sys
 
+from vetinfo_ia.adapters.excerpt_model import ExcerptModel
+from vetinfo_ia.adapters.keyword_search import KeywordSearch
+from vetinfo_ia.adapters.text_file import load_chunks
+from vetinfo_ia.application.answer_question import AnswerQuestion
 
-def read_bula(file_path: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as f:
-        bula = f.read()
-    return bula
-
-
-def split_paragraphs(text: str) -> list[str]:
-    paragraphs = text.split("\n\n")
-    return [p.strip() for p in paragraphs]
+BULA_PATH = "dados/coprovet.txt"
 
 
 def main() -> None:
-    file_path = "dados/coprovet.txt"
-    try:
-        bula = read_bula(file_path)
-    except FileNotFoundError:
-        print(f"File not found, please check, {file_path}")
+    if len(sys.argv) < 2:
+        print('Uso: uv run vetinfo-ia "sua pergunta"')
         return
 
-    bula_paragraphs = split_paragraphs(bula)
-    first_paragraph = bula_paragraphs[0]
-    paragraph_count = len(bula_paragraphs)
-    longest_paragraph = max(bula_paragraphs, key=len)
-    total_characters = len(longest_paragraph)
+    question = sys.argv[1]
 
-    print(f"First paragraph: {first_paragraph}")
-    print(f"Quantity of paragraphs: {paragraph_count}")
-    print(f"Longest paragraph: {longest_paragraph}")
-    print(f"Total characters in Longest paragraph: {total_characters}")
+    try:
+        chunks = load_chunks(BULA_PATH)
+    except FileNotFoundError:
+        print(f"Arquivo não encontrado: {BULA_PATH}")
+        return
+
+    use_case = AnswerQuestion(search=KeywordSearch(chunks), model=ExcerptModel())
+    answer = use_case.execute(question)
+
+    if answer is None:
+        print("Não encontrei essa informação nas bulas.")
+        return
+
+    print(answer.text)
+    print()
+    print("Fontes:")
+    for source in answer.sources:
+        print(f"- {source.document}, página {source.page}")
